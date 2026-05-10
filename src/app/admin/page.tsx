@@ -10,6 +10,12 @@ import { DayClosure, Employee, PaymentMethod, Service, Transaction } from '@/lib
 
 const ADMIN_PIN = '9999'
 
+type EmployeeRow = {
+  employee: Employee
+  transactions: Transaction[]
+  closure?: DayClosure
+}
+
 type Product = {
   id: string
   name: string
