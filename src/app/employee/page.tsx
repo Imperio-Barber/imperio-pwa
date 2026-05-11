@@ -99,7 +99,7 @@ export default function EmployeePage() {
   const typedPin = String(pin).trim()
 
   if (savedPin !== typedPin) {
-    setMessage(`Nieprawidłowy PIN dla ${employee.name}.`)
+    setMessage(`Nieprawidłowy PIN dla ${employee.name}. PIN z bazy: ${savedPin}`)
     return
   }
 
