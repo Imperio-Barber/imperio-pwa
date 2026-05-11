@@ -86,32 +86,35 @@ export default function EmployeePage() {
   const productCommission = productSalesTotal * 0.2
 
   function loginWithPin() {
-    setMessage('')
+  setMessage('')
 
-    const employee = employees.find((item) => item.id === loginEmployeeId) as Employee & { pin?: string }
+  const employee = employees.find((item) => item.id === loginEmployeeId) as Employee & { pin?: string | number }
 
-    if (!employee) {
-      setMessage('Wybierz pracownika.')
-      return
-    }
+  if (!employee) {
+    setMessage('Wybierz pracownika.')
+    return
+  }
 
-    if (String(employee.pin || '').trim() !== String(pin).trim()) {
+  const savedPin = String(employee.pin ?? '').trim()
+  const typedPin = String(pin).trim()
+
+  if (savedPin !== typedPin) {
     setMessage(`Nieprawidłowy PIN dla ${employee.name}.`)
     return
-    }
-
-    setEmployeeId(loginEmployeeId)
-    setIsLoggedIn(true)
-    setPin('')
-    setMessage('')
   }
 
-  function logout() {
-    setIsLoggedIn(false)
-    setPin('')
-    setMessage('')
-    setEditingTransactionId(null)
-  }
+  setEmployeeId(loginEmployeeId)
+  setIsLoggedIn(true)
+  setPin('')
+  setMessage('')
+}
+
+function logout() {
+  setIsLoggedIn(false)
+  setPin('')
+  setMessage('')
+  setEditingTransactionId(null)
+}
 
   async function loadData() {
     setMessage('')

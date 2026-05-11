@@ -57,14 +57,19 @@ export default function AdminPage() {
   const [rows, setRows] = useState<EmployeeRow[]>(
     demoEmployees.map((employee) => ({ employee, transactions: [] }))
   )
+
   const [message, setMessage] = useState('')
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [adminPin, setAdminPin] = useState('')
   const [savingEmployeeId, setSavingEmployeeId] = useState<string | null>(null)
+
   const [products, setProducts] = useState<Product[]>([])
   const [newProductName, setNewProductName] = useState('')
   const [newProductPrice, setNewProductPrice] = useState('')
   const [newProductQuantity, setNewProductQuantity] = useState('')
+
+  const [newServiceName, setNewServiceName] = useState('')
+  const [newServicePrice, setNewServicePrice] = useState('')
 
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [editServiceId, setEditServiceId] = useState('')
@@ -83,12 +88,12 @@ export default function AdminPage() {
     }
 
     const [employeesResult, transactionsResult, closuresResult, servicesResult, productsResult] = await Promise.all([
-   supabase.from('employees').select('*').eq('is_active', true).order('name'),
-   supabase.from('transactions').select('*').eq('date', date).order('created_at', { ascending: false }),
-   supabase.from('day_closures').select('*').eq('date', date),
-   supabase.from('services').select('*').eq('is_active', true).order('name'),
-   supabase.from('products').select('*').eq('is_active', true).order('name'),
-   ])
+      supabase.from('employees').select('*').eq('is_active', true).order('name'),
+      supabase.from('transactions').select('*').eq('date', date).order('created_at', { ascending: false }),
+      supabase.from('day_closures').select('*').eq('date', date),
+      supabase.from('services').select('*').eq('is_active', true).order('name'),
+      supabase.from('products').select('*').eq('is_active', true).order('name'),
+    ])
 
     if (employeesResult.error || !employeesResult.data) {
       setMessage('Nie udało się pobrać pracowników.')
@@ -100,9 +105,8 @@ export default function AdminPage() {
       return
     }
 
-    if (productsResult.data?.length) {
-      setProducts(productsResult.data as Product[])
-    }
+    setServices((servicesResult.data || []) as Service[])
+    setProducts((productsResult.data || []) as Product[])
 
     const typedTransactions = (transactionsResult.data || []) as Transaction[]
     const typedClosures = (closuresResult.data || []) as DayClosure[]
@@ -159,7 +163,6 @@ export default function AdminPage() {
     setEditServiceId(serviceId)
 
     const service = services.find((item) => item.id === serviceId)
-
     if (!service) return
 
     setEditServiceName(service.name)
@@ -184,11 +187,6 @@ export default function AdminPage() {
 
     if (!parsedAmount || parsedAmount <= 0) {
       setMessage('Wpisz poprawną kwotę.')
-      return
-    }
-
-    if (!isSupabaseConfigured) {
-      setMessage('Tryb demo: nie można zapisać korekty w bazie.')
       return
     }
 
@@ -217,11 +215,6 @@ export default function AdminPage() {
   async function deleteTransaction(id: string) {
     if (!confirm('Usunąć tę transakcję?')) return
 
-    if (!isSupabaseConfigured) {
-      setMessage('Tryb demo: nie można usunąć transakcji z bazy.')
-      return
-    }
-
     const { error } = await supabase.from('transactions').delete().eq('id', id)
 
     if (error) {
@@ -233,13 +226,37 @@ export default function AdminPage() {
     setMessage('Transakcja usunięta przez administratora.')
   }
 
-  async function unlockDay(employeeId: string) {
-    if (!confirm('Odblokować dzień temu pracownikowi? Pracownik będzie mógł ponownie edytować dzisiejszy dzień.')) return
+  async function closeEmployeeDay(row: EmployeeRow) {
+    if (!confirm(`Zamknąć dzień pracownikowi ${row.employee.name}?`)) return
 
-    if (!isSupabaseConfigured) {
-      setMessage('Tryb demo: nie można odblokować dnia.')
+    const summary = summarizeTransactions(row.transactions)
+
+    const payload = {
+      employee_id: row.employee.id,
+      date,
+      total_cash: summary.cash,
+      total_card: summary.card,
+      total_booksy_pay: summary.booksy_pay,
+      total_voucher: summary.voucher,
+      total_tips: summary.tips,
+      note: 'Zamknięte przez administratora',
+    }
+
+    const { error } = await supabase
+      .from('day_closures')
+      .upsert(payload, { onConflict: 'employee_id,date' })
+
+    if (error) {
+      setMessage('Nie udało się zamknąć dnia.')
       return
     }
+
+    await loadAdminData()
+    setMessage(`Dzień pracownika ${row.employee.name} został zamknięty.`)
+  }
+
+  async function unlockDay(employeeId: string) {
+    if (!confirm('Odblokować dzień temu pracownikowi?')) return
 
     const { error } = await supabase
       .from('day_closures')
@@ -290,151 +307,237 @@ export default function AdminPage() {
   }
 
   async function addProduct() {
-  const price = Number(String(newProductPrice).replace(',', '.'))
-  const quantity = Number(String(newProductQuantity).replace(',', '.'))
+    const price = Number(String(newProductPrice).replace(',', '.'))
+    const quantity = Number(String(newProductQuantity).replace(',', '.'))
 
-  if (!newProductName.trim()) {
-    setMessage('Wpisz nazwę produktu.')
-    return
-  }
+    if (!newProductName.trim()) {
+      setMessage('Wpisz nazwę produktu.')
+      return
+    }
 
-  if (Number.isNaN(price) || Number.isNaN(quantity)) {
-    setMessage('Wpisz poprawną cenę i ilość.')
-    return
-  }
+    if (Number.isNaN(price) || Number.isNaN(quantity)) {
+      setMessage('Wpisz poprawną cenę i ilość.')
+      return
+    }
 
-  const { error } = await supabase.from('products').insert({
-    name: newProductName,
-    sale_price: price,
-    stock_quantity: quantity,
-  })
-
-  if (error) {
-    setMessage('Nie udało się dodać produktu.')
-    return
-  }
-
-  setNewProductName('')
-  setNewProductPrice('')
-  setNewProductQuantity('')
-
-  await loadAdminData()
-  setMessage('Produkt dodany.')
-}
-
-async function addProductQuantity(product: Product, value: string) {
-  const quantity = Number(String(value).replace(',', '.'))
-
-  if (Number.isNaN(quantity)) {
-    setMessage('Wpisz poprawną ilość.')
-    return
-  }
-
-  const { error } = await supabase
-    .from('products')
-    .update({
-      stock_quantity: Number(product.stock_quantity) + quantity,
-    })
-    .eq('id', product.id)
-
-  if (error) {
-    setMessage('Nie udało się dodać ilości.')
-    return
-  }
-
-  await loadAdminData()
-  setMessage('Ilość dodana do magazynu.')
-}
-
-async function correctProductStock(product: Product, value: string) {
-  const quantity = Number(String(value).replace(',', '.'))
-
-  if (Number.isNaN(quantity) || quantity < 0) {
-    setMessage('Wpisz poprawny stan.')
-    return
-  }
-
-  const { error } = await supabase
-    .from('products')
-    .update({
-      stock_quantity: quantity,
-    })
-    .eq('id', product.id)
-
-  if (error) {
-    setMessage('Nie udało się zapisać korekty stanu.')
-    return
-  }
-
-  await loadAdminData()
-  setMessage('Stan magazynowy poprawiony.')
-}
-  async function updateProductPrice(product: Product, value: string) {
-  const price = Number(String(value).replace(',', '.'))
-
-  if (Number.isNaN(price) || price < 0) {
-    setMessage('Wpisz poprawną cenę produktu.')
-    return
-  }
-
-  const { error } = await supabase
-    .from('products')
-    .update({
+    const { error } = await supabase.from('products').insert({
+      name: newProductName.trim(),
       sale_price: price,
+      stock_quantity: quantity,
+      is_active: true,
     })
-    .eq('id', product.id)
 
-  if (error) {
-    setMessage('Nie udało się zmienić ceny produktu.')
-    return
+    if (error) {
+      setMessage('Nie udało się dodać produktu.')
+      return
+    }
+
+    setNewProductName('')
+    setNewProductPrice('')
+    setNewProductQuantity('')
+
+    await loadAdminData()
+    setMessage('Produkt dodany.')
   }
 
-  await loadAdminData()
-  setMessage('Cena produktu została zmieniona.')
-}
-async function deleteProduct(product: Product) {
-  if (!confirm(`Usunąć produkt "${product.name}" z listy magazynu?`)) return
+  async function addProductQuantity(product: Product, value: string) {
+    const quantity = Number(String(value).replace(',', '.'))
 
-  const { error } = await supabase
-    .from('products')
-    .update({
-      is_active: false,
+    if (Number.isNaN(quantity)) {
+      setMessage('Wpisz poprawną ilość.')
+      return
+    }
+
+    const { error } = await supabase
+      .from('products')
+      .update({ stock_quantity: Number(product.stock_quantity) + quantity })
+      .eq('id', product.id)
+
+    if (error) {
+      setMessage('Nie udało się dodać ilości.')
+      return
+    }
+
+    await loadAdminData()
+    setMessage('Ilość dodana do magazynu.')
+  }
+
+  async function correctProductStock(product: Product, value: string) {
+    const quantity = Number(String(value).replace(',', '.'))
+
+    if (Number.isNaN(quantity) || quantity < 0) {
+      setMessage('Wpisz poprawny stan.')
+      return
+    }
+
+    const { error } = await supabase
+      .from('products')
+      .update({ stock_quantity: quantity })
+      .eq('id', product.id)
+
+    if (error) {
+      setMessage('Nie udało się zapisać korekty stanu.')
+      return
+    }
+
+    await loadAdminData()
+    setMessage('Stan magazynowy poprawiony.')
+  }
+
+  async function updateProductPrice(product: Product, value: string) {
+    const price = Number(String(value).replace(',', '.'))
+
+    if (Number.isNaN(price) || price < 0) {
+      setMessage('Wpisz poprawną cenę produktu.')
+      return
+    }
+
+    const { error } = await supabase
+      .from('products')
+      .update({ sale_price: price })
+      .eq('id', product.id)
+
+    if (error) {
+      setMessage('Nie udało się zmienić ceny produktu.')
+      return
+    }
+
+    await loadAdminData()
+    setMessage('Cena produktu została zmieniona.')
+  }
+
+  async function updateProductName(product: Product, value: string) {
+    const name = value.trim()
+
+    if (!name) {
+      setMessage('Wpisz nazwę produktu.')
+      return
+    }
+
+    const { error } = await supabase
+      .from('products')
+      .update({ name })
+      .eq('id', product.id)
+
+    if (error) {
+      setMessage('Nie udało się zmienić nazwy produktu.')
+      return
+    }
+
+    await loadAdminData()
+    setMessage('Nazwa produktu została zmieniona.')
+  }
+
+  async function deleteProduct(product: Product) {
+    if (!confirm(`Usunąć produkt "${product.name}" z listy magazynu?`)) return
+
+    const { error } = await supabase
+      .from('products')
+      .update({ is_active: false })
+      .eq('id', product.id)
+
+    if (error) {
+      setMessage('Nie udało się usunąć produktu.')
+      return
+    }
+
+    await loadAdminData()
+    setMessage('Produkt usunięty z listy.')
+  }
+
+  async function addService() {
+    const price = Number(String(newServicePrice).replace(',', '.'))
+
+    if (!newServiceName.trim()) {
+      setMessage('Wpisz nazwę usługi.')
+      return
+    }
+
+    if (Number.isNaN(price) || price < 0) {
+      setMessage('Wpisz poprawną cenę usługi.')
+      return
+    }
+
+    const { error } = await supabase.from('services').insert({
+      name: newServiceName.trim(),
+      price,
+      is_active: true,
     })
-    .eq('id', product.id)
 
-  if (error) {
-    setMessage('Nie udało się usunąć produktu.')
-    return
+    if (error) {
+      setMessage('Nie udało się dodać usługi.')
+      return
+    }
+
+    setNewServiceName('')
+    setNewServicePrice('')
+
+    await loadAdminData()
+    setMessage('Usługa dodana.')
   }
 
-  await loadAdminData()
-  setMessage('Produkt usunięty z listy.')
-}
-async function updateProductName(product: Product, value: string) {
-  const name = value.trim()
+  async function updateServicePrice(service: Service, value: string) {
+    const price = Number(String(value).replace(',', '.'))
 
-  if (!name) {
-    setMessage('Wpisz nazwę produktu.')
-    return
+    if (Number.isNaN(price) || price < 0) {
+      setMessage('Wpisz poprawną cenę usługi.')
+      return
+    }
+
+    const { error } = await supabase
+      .from('services')
+      .update({ price })
+      .eq('id', service.id)
+
+    if (error) {
+      setMessage('Nie udało się zmienić ceny usługi.')
+      return
+    }
+
+    await loadAdminData()
+    setMessage('Cena usługi została zmieniona.')
   }
 
-  const { error } = await supabase
-    .from('products')
-    .update({
-      name,
-    })
-    .eq('id', product.id)
+  async function updateServiceName(service: Service, value: string) {
+    const name = value.trim()
 
-  if (error) {
-    setMessage('Nie udało się zmienić nazwy produktu.')
-    return
+    if (!name) {
+      setMessage('Wpisz nazwę usługi.')
+      return
+    }
+
+    const { error } = await supabase
+      .from('services')
+      .update({ name })
+      .eq('id', service.id)
+
+    if (error) {
+      setMessage('Nie udało się zmienić nazwy usługi.')
+      return
+    }
+
+    await loadAdminData()
+    setMessage('Nazwa usługi została zmieniona.')
   }
 
-  await loadAdminData()
-  setMessage('Nazwa produktu została zmieniona.')
-}
+  async function deleteService(service: Service) {
+    if (!confirm(`Usunąć usługę "${service.name}" z cennika?`)) return
+
+    const { error } = await supabase
+      .from('services')
+      .update({ is_active: false })
+      .eq('id', service.id)
+
+    if (error) {
+      setMessage('Nie udało się usunąć usługi.')
+      return
+    }
+
+    await loadAdminData()
+    setMessage('Usługa usunięta z cennika.')
+  }
+
   function exportCsv() {
-  
     const header = ['data', 'pracownik', 'godzina', 'usluga', 'kwota', 'platnosc', 'napiwek', 'notatka']
 
     const body = rows.flatMap((row) =>
@@ -615,7 +718,11 @@ async function updateProductName(product: Product, value: string) {
                     <button className="btn btn-dark" type="button" onClick={() => unlockDay(row.employee.id)}>
                       Odblokuj dzień
                     </button>
-                  ) : null}
+                  ) : (
+                    <button className="btn btn-primary" type="button" onClick={() => closeEmployeeDay(row)}>
+                      Zamknij dzień
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -697,7 +804,74 @@ async function updateProductName(product: Product, value: string) {
           )
         })}
       </section>
-                  <section className="tile mt-4">
+
+      <section className="tile mt-4">
+        <div className="mb-4">
+          <p className="text-sm text-imperio-gold">Usługi</p>
+          <h2 className="text-2xl font-bold">Cennik usług</h2>
+        </div>
+
+        <div className="mb-4 grid gap-3 md:grid-cols-[1fr_160px_160px] md:items-end">
+          <div>
+            <label className="label">Nazwa usługi</label>
+            <input
+              className="input"
+              value={newServiceName}
+              onChange={(event) => setNewServiceName(event.target.value)}
+              placeholder="Np. Combo trymer"
+            />
+          </div>
+
+          <div>
+            <label className="label">Cena</label>
+            <input
+              className="input"
+              inputMode="decimal"
+              value={newServicePrice}
+              onChange={(event) => setNewServicePrice(event.target.value)}
+              placeholder="140"
+            />
+          </div>
+
+          <button className="btn btn-primary" type="button" onClick={addService}>
+            Dodaj usługę
+          </button>
+        </div>
+
+        <div className="overflow-x-auto rounded-xl border border-white/10">
+          <table className="w-full min-w-[900px] text-left text-sm">
+            <thead className="bg-black/30 text-white/50">
+              <tr>
+                <th className="px-3 py-3">Usługa</th>
+                <th className="px-3 py-3">Cena</th>
+                <th className="px-3 py-3">Usuń</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {services.map((service) => (
+                <ServiceRow
+                  key={service.id}
+                  service={service}
+                  onNameChange={updateServiceName}
+                  onPriceChange={updateServicePrice}
+                  onDelete={deleteService}
+                />
+              ))}
+
+              {!services.length ? (
+                <tr>
+                  <td colSpan={3} className="px-3 py-6 text-center text-white/45">
+                    Brak usług w cenniku.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="tile mt-4">
         <div className="mb-4">
           <p className="text-sm text-imperio-gold">Magazyn</p>
           <h2 className="text-2xl font-bold">Produkty</h2>
@@ -757,13 +931,13 @@ async function updateProductName(product: Product, value: string) {
             <tbody>
               {products.map((product) => (
                 <ProductRow
-                  onNameChange={updateProductName}
                   key={product.id}
                   product={product}
                   onAdd={addProductQuantity}
                   onCorrect={correctProductStock}
                   onPriceChange={updateProductPrice}
                   onDelete={deleteProduct}
+                  onNameChange={updateProductName}
                 />
               ))}
 
@@ -791,6 +965,64 @@ function SmallStat({ label, value }: { label: string; value: number }) {
   )
 }
 
+function ServiceRow({
+  service,
+  onNameChange,
+  onPriceChange,
+  onDelete,
+}: {
+  service: Service
+  onNameChange: (service: Service, value: string) => void
+  onPriceChange: (service: Service, value: string) => void
+  onDelete: (service: Service) => void
+}) {
+  const [nameValue, setNameValue] = useState(service.name)
+  const [priceValue, setPriceValue] = useState(String(service.price))
+
+  return (
+    <tr className="border-t border-white/10">
+      <td className="px-3 py-3">
+        <div className="flex gap-2">
+          <input
+            className="input max-w-[260px]"
+            value={nameValue}
+            onChange={(event) => setNameValue(event.target.value)}
+          />
+
+          <button className="btn btn-dark" type="button" onClick={() => onNameChange(service, nameValue)}>
+            Zapisz
+          </button>
+        </div>
+      </td>
+
+      <td className="px-3 py-3">
+        <div className="flex gap-2">
+          <input
+            className="input max-w-[120px]"
+            inputMode="decimal"
+            value={priceValue}
+            onChange={(event) => setPriceValue(event.target.value)}
+          />
+
+          <button className="btn btn-dark" type="button" onClick={() => onPriceChange(service, priceValue)}>
+            Zapisz
+          </button>
+        </div>
+      </td>
+
+      <td className="px-3 py-3">
+        <button
+          className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-200"
+          type="button"
+          onClick={() => onDelete(service)}
+        >
+          Usuń
+        </button>
+      </td>
+    </tr>
+  )
+}
+
 function ProductRow({
   product,
   onAdd,
@@ -814,22 +1046,18 @@ function ProductRow({
   return (
     <tr className="border-t border-white/10">
       <td className="px-3 py-3">
-  <div className="flex gap-2">
-    <input
-      className="input max-w-[220px]"
-      value={nameValue}
-      onChange={(event) => setNameValue(event.target.value)}
-    />
+        <div className="flex gap-2">
+          <input
+            className="input max-w-[220px]"
+            value={nameValue}
+            onChange={(event) => setNameValue(event.target.value)}
+          />
 
-    <button
-      className="btn btn-dark"
-      type="button"
-      onClick={() => onNameChange(product, nameValue)}
-    >
-      Zapisz
-    </button>
-  </div>
-</td>
+          <button className="btn btn-dark" type="button" onClick={() => onNameChange(product, nameValue)}>
+            Zapisz
+          </button>
+        </div>
+      </td>
 
       <td className="px-3 py-3">
         <div className="flex gap-2">
@@ -840,11 +1068,7 @@ function ProductRow({
             onChange={(event) => setPriceValue(event.target.value)}
           />
 
-          <button
-            className="btn btn-dark"
-            type="button"
-            onClick={() => onPriceChange(product, priceValue)}
-          >
+          <button className="btn btn-dark" type="button" onClick={() => onPriceChange(product, priceValue)}>
             Zapisz
           </button>
         </div>
@@ -886,11 +1110,7 @@ function ProductRow({
             onChange={(event) => setCorrectValue(event.target.value)}
           />
 
-          <button
-            className="btn btn-dark"
-            type="button"
-            onClick={() => onCorrect(product, correctValue)}
-          >
+          <button className="btn btn-dark" type="button" onClick={() => onCorrect(product, correctValue)}>
             Zapisz
           </button>
         </div>
