@@ -5,6 +5,7 @@ export type Employee = {
   name: string
   role: string
   commission_percent: number
+  pin?: string
   is_active: boolean
 }
 
