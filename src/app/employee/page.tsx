@@ -95,9 +95,9 @@ export default function EmployeePage() {
       return
     }
 
-    if (employee.pin !== pin) {
-      setMessage('Nieprawidłowy PIN.')
-      return
+    if (String(employee.pin || '').trim() !== String(pin).trim()) {
+    setMessage(`Nieprawidłowy PIN dla ${employee.name}.`)
+    return
     }
 
     setEmployeeId(loginEmployeeId)
