@@ -126,9 +126,12 @@ function logout() {
 
     if (!isSupabaseConfigured) return
 
-    const [employeesResult, servicesResult, productsResult] = await Promise.all([
-      supabase.from('employees').select('*').eq('is_active', true).order('name'),
-      supabase.from('services').select('*').eq('is_active', true).order('name'),
+     const [employeesResult, servicesResult, productsResult] = await Promise.all([
+  supabase
+  .from('employees')
+  .select('id, name, role, commission_percent, is_active, pin')
+  .eq('is_active', true)
+  .order('name'),      supabase.from('services').select('*').eq('is_active', true).order('name'),
       supabase.from('products').select('*').eq('is_active', true).order('name'),
     ])
 
