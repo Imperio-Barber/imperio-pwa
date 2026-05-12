@@ -108,18 +108,22 @@ export default function EmployeePage() {
     return
   }
 
-  setEmployeeId(loginEmployeeId)
-  setIsLoggedIn(true)
-  setPin('')
-  setMessage('')
-}
+  localStorage.setItem('imperioEmployeeId', loginEmployeeId)
+
+ setEmployeeId(loginEmployeeId)
+ setIsLoggedIn(true)
+ setPin('')
+ setMessage('')
+ }
 
 function logout() {
+  localStorage.removeItem('imperioEmployeeId')
+
   setIsLoggedIn(false)
   setPin('')
   setMessage('')
   setEditingTransactionId(null)
-}
+ }
 
   async function loadData() {
     setMessage('')
@@ -192,8 +196,16 @@ function logout() {
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+  loadData()
+
+  const savedEmployeeId = localStorage.getItem('imperioEmployeeId')
+
+  if (savedEmployeeId) {
+    setLoginEmployeeId(savedEmployeeId)
+    setEmployeeId(savedEmployeeId)
+    setIsLoggedIn(true)
+  }
+}, [])
 
   useEffect(() => {
     loadTransactions(employeeId)
@@ -396,51 +408,59 @@ function logout() {
   return (
     <main className="mx-auto min-h-screen max-w-6xl p-4 md:p-8">
       {!isLoggedIn ? (
-        <>
-          <Header title="Logowanie pracownika" subtitle="Wybierz swoje konto i wpisz PIN." />
+  <div className="mx-auto flex min-h-[80vh] w-full max-w-3xl flex-col justify-center px-3 py-6 sm:px-4">
+    <Header title="Logowanie pracownika" subtitle="Wybierz swoje konto i wpisz PIN." />
 
-          <section className="tile mx-auto max-w-md">
-            <div>
-              <label className="label">Pracownik</label>
+    <section className="tile mx-auto mt-6 w-full max-w-xl">
+      <div>
+        <label className="label mb-2 block">Pracownik</label>
 
-              <div className="grid grid-cols-2 gap-2">
-                {employees.map((employee) => (
-                  <button
-                    key={employee.id}
-                    type="button"
-                    onClick={() => setLoginEmployeeId(employee.id)}
-                    className={`rounded-xl border px-3 py-3 text-center font-bold transition ${
-                      loginEmployeeId === employee.id
-                        ? 'border-imperio-gold bg-imperio-gold text-black'
-                        : 'border-white/10 bg-black/30 text-white hover:bg-white/10'
-                    }`}
-                  >
-                    {employee.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <label className="label">PIN</label>
-              <input
-                className="input"
-                type="password"
-                inputMode="numeric"
-                value={pin}
-                onChange={(event) => setPin(event.target.value)}
-                placeholder="Wpisz PIN"
-              />
-            </div>
-
-            <button className="btn btn-primary mt-5 w-full text-lg" type="button" onClick={loginWithPin}>
-              Zaloguj
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {employees.map((employee) => (
+            <button
+              key={employee.id}
+              type="button"
+              onClick={() => setLoginEmployeeId(employee.id)}
+              className={`min-h-[58px] rounded-xl border px-4 py-3 text-center text-base font-bold transition sm:min-h-[64px] sm:text-lg ${
+                loginEmployeeId === employee.id
+                  ? 'border-imperio-gold bg-imperio-gold text-black'
+                  : 'border-white/10 bg-black/30 text-white hover:bg-white/10'
+              }`}
+            >
+              {employee.name}
             </button>
+          ))}
+        </div>
+      </div>
 
-            {message ? <p className="mt-3 text-sm text-imperio-gold">{message}</p> : null}
-          </section>
-        </>
-      ) : (
+      <div className="mt-6">
+        <label className="label mb-2 block">PIN</label>
+        <input
+          className="input h-[56px] w-full text-lg"
+          type="password"
+          inputMode="numeric"
+          value={pin}
+          onChange={(event) => setPin(event.target.value)}
+          placeholder="Wpisz PIN"
+        />
+      </div>
+
+      <button
+        className="btn btn-primary mt-6 h-[58px] w-full text-lg font-bold"
+        type="button"
+        onClick={loginWithPin}
+      >
+        Zaloguj
+      </button>
+
+      {message ? (
+        <p className="mt-4 text-center text-sm text-imperio-gold">
+          {message}
+        </p>
+      ) : null}
+    </section>
+  </div>
+) : (
         <>
           <Header title="Panel pracownika" subtitle="Szybkie wpisywanie utargu na tablecie." />
 
