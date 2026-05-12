@@ -423,7 +423,7 @@ function logout() {
               onClick={() => setLoginEmployeeId(employee.id)}
               className={`min-h-[58px] rounded-xl border px-4 py-3 text-center text-base font-bold transition sm:min-h-[64px] sm:text-lg ${
                 loginEmployeeId === employee.id
-                  ? 'border-imperio-gold bg-imperio-gold text-black'
+                  ? 'border-[#7bc892] bg-[#7bc892] text-black'
                   : 'border-white/10 bg-black/30 text-white hover:bg-white/10'
               }`}
             >
@@ -491,7 +491,7 @@ function logout() {
                       }}
                       className={`rounded-xl border p-3 text-left transition ${
                         serviceId === service.id
-                          ? 'border-imperio-gold bg-imperio-gold text-black'
+                          ? 'border-[#7bc892] bg-[#7bc892] text-black'
                           : 'border-white/10 bg-black/30 text-white hover:bg-white/10'
                       }`}
                     >
