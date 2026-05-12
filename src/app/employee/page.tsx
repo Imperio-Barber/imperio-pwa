@@ -85,21 +85,26 @@ export default function EmployeePage() {
 
   const productCommission = productSalesTotal * 0.2
 
-  function loginWithPin() {
+ function loginWithPin() {
   setMessage('')
 
-  const employee = employees.find((item) => item.id === loginEmployeeId) as Employee & { pin?: string | number }
+  const employee = employees.find(
+    (item) => item.id === loginEmployeeId
+  )
 
   if (!employee) {
-    setMessage('Wybierz pracownika.')
+    setMessage('Nie wybrano pracownika.')
     return
   }
 
-  const savedPin = String(employee.pin ?? '').trim()
-  const typedPin = String(pin).trim()
+  console.log('EMPLOYEE:', employee)
+  console.log('PIN FROM DB:', employee.pin)
+  console.log('TYPED PIN:', pin)
 
-  if (savedPin !== typedPin) {
-    setMessage(`Nieprawidłowy PIN dla ${employee.name}. PIN z bazy: ${savedPin}`)
+  if (String(employee.pin).trim() !== String(pin).trim()) {
+    setMessage(
+      `Nieprawidłowy PIN dla ${employee.name}.`
+    )
     return
   }
 
