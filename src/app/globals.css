@@ -38,3 +38,19 @@ body > * {
   position: relative;
   z-index: 1;
 }
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+input,
+button,
+select,
+textarea {
+  font-size: 16px;
+}

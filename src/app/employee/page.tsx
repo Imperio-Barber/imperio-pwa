@@ -397,7 +397,7 @@ function logout() {
     <main className="mx-auto min-h-screen max-w-6xl p-4 md:p-8">
       {!isLoggedIn ? (
         <>
-          <Header title="Logowanie pracownika TEST 123" subtitle="Wybierz swoje konto i wpisz PIN." />
+          <Header title="Logowanie pracownika" subtitle="Wybierz swoje konto i wpisz PIN." />
 
           <section className="tile mx-auto max-w-md">
             <div>
