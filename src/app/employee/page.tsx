@@ -424,7 +424,16 @@ export default function EmployeePage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    return (
+  <main className="relative min-h-screen overflow-hidden bg-black text-white">
+
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.07]">
+      <img
+        src="/logo-bg.png"
+        alt="Imperio Barber"
+        className="w-[70vw] max-w-[700px] object-contain"
+      />
+      </div>
       <div className="mx-auto min-h-screen max-w-6xl p-4 md:p-8">
         {!isLoggedIn ? (
           <div className="mx-auto flex min-h-[80vh] w-full max-w-3xl flex-col justify-center px-3 py-6 sm:px-4">
