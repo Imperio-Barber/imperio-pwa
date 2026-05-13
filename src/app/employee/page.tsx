@@ -87,11 +87,14 @@ export default function EmployeePage() {
   const inputClass =
     'w-full min-h-[54px] rounded-2xl border border-white/25 bg-zinc-950 px-4 py-3 text-white placeholder:text-zinc-500 outline-none transition focus:border-[#7bc892] focus:ring-2 focus:ring-[#7bc892]/30'
 
-  const tileButtonClass =
+  const darkTileClass =
     'min-h-[58px] rounded-2xl border border-white/15 bg-zinc-900 px-4 py-3 font-bold text-white shadow-md transition hover:bg-zinc-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50'
 
   const greenTileClass =
     'min-h-[64px] rounded-2xl border border-[#7bc892]/70 bg-[#7bc892] px-4 py-4 text-lg font-bold text-black shadow-md transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50'
+
+  const redTileClass =
+    'min-h-[64px] rounded-2xl border border-red-500/50 bg-red-600 px-4 py-4 text-lg font-bold text-white shadow-md transition hover:bg-red-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50'
 
   function loginWithPin() {
     setMessage('')
@@ -108,8 +111,7 @@ export default function EmployeePage() {
       return
     }
 
-    localStorage.setItem('imperioEmployeeId', loginEmployeeId)
-
+    sessionStorage.setItem('imperioEmployeeId', loginEmployeeId)
     setEmployeeId(loginEmployeeId)
     setIsLoggedIn(true)
     setPin('')
@@ -117,8 +119,7 @@ export default function EmployeePage() {
   }
 
   function logout() {
-    localStorage.removeItem('imperioEmployeeId')
-
+    sessionStorage.removeItem('imperioEmployeeId')
     setIsLoggedIn(false)
     setPin('')
     setMessage('')
@@ -143,7 +144,7 @@ export default function EmployeePage() {
     if (employeesResult.data?.length) {
       const loadedEmployees = employeesResult.data as Employee[]
       const savedEmployeeId =
-        typeof window !== 'undefined' ? localStorage.getItem('imperioEmployeeId') : null
+        typeof window !== 'undefined' ? sessionStorage.getItem('imperioEmployeeId') : null
 
       const employeeExists = savedEmployeeId
         ? loadedEmployees.some((employee) => employee.id === savedEmployeeId)
@@ -388,12 +389,14 @@ export default function EmployeePage() {
 
   async function closeDay() {
     if (!selectedEmployee) return
+
     if (
-  !confirm(
-    'Czy na pewno zamknąć dzień? Po zamknięciu nie będzie można dodawać ani edytować transakcji.'
-  )
-)
-  return
+      !confirm(
+        'Czy na pewno zamknąć dzień? Po zamknięciu nie będzie można dodawać ani edytować transakcji.'
+      )
+    ) {
+      return
+    }
 
     const payload = {
       employee_id: selectedEmployee.id,
@@ -428,25 +431,23 @@ export default function EmployeePage() {
             <Header title="Logowanie pracownika" subtitle="Wybierz swoje konto i wpisz PIN." />
 
             <section className="mx-auto mt-6 w-full max-w-xl rounded-3xl border border-white/10 bg-zinc-950 p-5 shadow-xl">
-              <div>
-                <label className="mb-2 block text-sm font-bold text-white/70">Pracownik</label>
+              <label className="mb-2 block text-sm font-bold text-white/70">Pracownik</label>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {employees.map((employee) => (
-                    <button
-                      key={employee.id}
-                      type="button"
-                      onClick={() => setLoginEmployeeId(employee.id)}
-                      className={`min-h-[64px] rounded-2xl border px-4 py-3 text-center text-base font-bold shadow-md transition active:scale-[0.98] sm:text-lg ${
-                        loginEmployeeId === employee.id
-                          ? 'border-[#7bc892] bg-[#7bc892] text-black'
-                          : 'border-white/15 bg-zinc-900 text-white hover:bg-zinc-800'
-                      }`}
-                    >
-                      {employee.name}
-                    </button>
-                  ))}
-                </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {employees.map((employee) => (
+                  <button
+                    key={employee.id}
+                    type="button"
+                    onClick={() => setLoginEmployeeId(employee.id)}
+                    className={`min-h-[64px] rounded-2xl border px-4 py-3 text-center text-base font-bold shadow-md transition active:scale-[0.98] sm:text-lg ${
+                      loginEmployeeId === employee.id
+                        ? 'border-[#7bc892] bg-[#7bc892] text-black'
+                        : 'border-white/15 bg-zinc-900 text-white hover:bg-zinc-800'
+                    }`}
+                  >
+                    {employee.name}
+                  </button>
+                ))}
               </div>
 
               <div className="mt-6">
@@ -479,10 +480,19 @@ export default function EmployeePage() {
             <Header title="Panel pracownika" subtitle="Szybkie wpisywanie utargu na tablecie." />
 
             <div className="mb-4 flex justify-end">
-              <button className={tileButtonClass} type="button" onClick={logout}>
+              <button className={darkTileClass} type="button" onClick={logout}>
                 Wyloguj
               </button>
             </div>
+
+            {closureDone ? (
+              <div className="mb-4 rounded-3xl border border-red-500/40 bg-red-500/10 p-4 text-red-100">
+                <p className="font-bold">Dzień jest zamknięty.</p>
+                <p className="text-sm opacity-80">
+                  Nie można już dodawać, edytować ani usuwać transakcji.
+                </p>
+              </div>
+            ) : null}
 
             <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
               <div className="grid gap-4 md:grid-cols-2">
@@ -545,9 +555,7 @@ export default function EmployeePage() {
                   <select
                     className={inputClass}
                     value={discountType}
-                    onChange={(event) =>
-                      setDiscountType(event.target.value as 'pln' | 'percent')
-                    }
+                    onChange={(event) => setDiscountType(event.target.value as 'pln' | 'percent')}
                   >
                     <option value="pln">zł</option>
                     <option value="percent">%</option>
@@ -618,29 +626,28 @@ export default function EmployeePage() {
                     <h2 className="text-xl font-bold">Sprzedaż kosmetyku</h2>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-[1fr_120px_160px] md:items-end">
-                    <div>
-                      <label className="mb-2 block text-sm font-bold text-white/70">Produkt</label>
-                      <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-  {products.map((product) => (
-    <button
-      key={product.id}
-      type="button"
-      onClick={() => setProductId(product.id)}
-      className={`min-h-[92px] rounded-2xl border p-3 text-left shadow-md transition active:scale-[0.98] ${
-        productId === product.id
-          ? 'border-[#7bc892] bg-[#7bc892] text-black'
-          : 'border-white/15 bg-zinc-900 text-white hover:bg-zinc-800'
-      }`}
-    >
-      <p className="font-bold">{product.name}</p>
-      <p className="mt-1 text-sm opacity-70">{money(product.sale_price)}</p>
-      <p className="text-sm opacity-70">Stan: {product.stock_quantity} szt.</p>
-    </button>
-  ))}
-</div>
-                    </div>
+                  <label className="mb-2 block text-sm font-bold text-white/70">Kosmetyk</label>
 
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                    {products.map((product) => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        onClick={() => setProductId(product.id)}
+                        className={`min-h-[92px] rounded-2xl border p-3 text-left shadow-md transition active:scale-[0.98] ${
+                          productId === product.id
+                            ? 'border-[#7bc892] bg-[#7bc892] text-black'
+                            : 'border-white/15 bg-zinc-900 text-white hover:bg-zinc-800'
+                        }`}
+                      >
+                        <p className="font-bold">{product.name}</p>
+                        <p className="mt-1 text-sm opacity-70">{money(product.sale_price)}</p>
+                        <p className="text-sm opacity-70">Stan: {product.stock_quantity} szt.</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-[1fr_160px] md:items-end">
                     <div>
                       <label className="mb-2 block text-sm font-bold text-white/70">Ilość</label>
                       <input
@@ -659,7 +666,6 @@ export default function EmployeePage() {
                     >
                       Sprzedaj
                     </button>
-                  </div>
                   </div>
                 </div>
               </div>
@@ -685,9 +691,7 @@ export default function EmployeePage() {
                     </div>
 
                     <button
-                      className={ closureDone ? tileButtonClass
-                      : 'min-h-[64px] rounded-2xl border border-red-500/50 bg-red-600 px-4 py-4 text-lg font-bold text-white shadow-md transition hover:bg-red-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50'
-                      }
+                      className={closureDone ? darkTileClass : redTileClass}
                       onClick={closeDay}
                       type="button"
                       disabled={closureDone}
@@ -729,9 +733,8 @@ export default function EmployeePage() {
                         <td>{money(transaction.amount)}</td>
                         <td>
                           {
-                            paymentMethods.find(
-                              (m) => m.value === transaction.payment_method
-                            )?.label
+                            paymentMethods.find((m) => m.value === transaction.payment_method)
+                              ?.label
                           }
                         </td>
                         <td>{money(transaction.tip_amount)}</td>
@@ -740,7 +743,7 @@ export default function EmployeePage() {
                           <div className="flex gap-2">
                             <button
                               type="button"
-                              className={tileButtonClass}
+                              className={darkTileClass}
                               onClick={() => startEditTransaction(transaction)}
                               disabled={closureDone}
                             >
