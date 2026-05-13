@@ -425,16 +425,13 @@ export default function EmployeePage() {
 
   return (
     return (
-  <main className="relative min-h-screen overflow-hidden bg-transparent text-white">
-
-    <div className="pointer-events-none fixed inset-0 z-[9999] flex items-center justify-center opacity-100">
-  <img
-    src="/logo-bg.png"
-    alt="Imperio Barber"
-    className="w-[90vw] max-w-[900px] object-contain"
-  />
-</div>
-      <div className="relative z-10 mx-auto min-h-screen max-w-6xl bg-black/70 p-4 backdrop-blur-[2px] md:p-8">
+  <main
+  className="min-h-screen bg-black bg-[url('/logo-bg.png')] bg-center bg-no-repeat text-white"
+  style={{
+    backgroundSize: '55%',
+  }}
+>
+      <div className="mx-auto min-h-screen max-w-6xl bg-black/20 p-4 md:p-8">
         {!isLoggedIn ? (
           <div className="mx-auto flex min-h-[80vh] w-full max-w-3xl flex-col justify-center px-3 py-6 sm:px-4">
             <Header title="Logowanie pracownika" subtitle="Wybierz swoje konto i wpisz PIN." />
