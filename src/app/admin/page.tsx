@@ -600,10 +600,9 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-7xl p-4 md:p-8">
-      <Header title="Panel administratora" subtitle="Kontrola utargów, prowizji, wypłat i korekt." />
+<main className="mx-auto min-h-screen w-full max-w-[1600px] overflow-x-hidden p-2 sm:p-4 md:p-6">      <Header title="Panel administratora" subtitle="Kontrola utargów, prowizji, wypłat i korekt." />
 
-      <section className="mb-4 grid gap-3 md:grid-cols-[240px_1fr_180px_140px] md:items-end">
+      <section className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[240px_1fr_180px_140px] lg:items-end">
         <div>
           <label className="label">Data</label>
           <input className="input" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
@@ -726,7 +725,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="mb-4 grid gap-3 md:grid-cols-[1fr_160px_120px] md:items-end">
+              <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_160px_120px] lg:items-end">
                 <div className="text-sm text-white/50">
                   {row.employee.name === 'Ola' ? 'Model wypłaty: procent od netto + połowa VAT.' : 'Model wypłaty: procent od brutto.'}
                 </div>
@@ -741,7 +740,7 @@ export default function AdminPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-7">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
                 <SmallStat label="Razem" value={summary.total} />
                 <SmallStat label="Gotówka" value={summary.cash} />
                 <SmallStat label="Karta" value={summary.card} />
@@ -752,7 +751,7 @@ export default function AdminPage() {
               </div>
 
               <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
-                <table className="w-full min-w-[900px] text-left text-sm">
+                <table className="min-w-[700px] w-full text-left text-xs sm:text-sm">
                   <thead className="bg-black/30 text-white/50">
                     <tr>
                       <th className="px-3 py-3">Godzina</th>
@@ -916,7 +915,7 @@ export default function AdminPage() {
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-white/10">
-          <table className="w-full min-w-[1100px] text-left text-sm">
+          <table className="w-full text-left text-xs sm:text-sm">
             <thead className="bg-black/30 text-white/50">
               <tr>
                 <th className="px-3 py-3">Produkt</th>
