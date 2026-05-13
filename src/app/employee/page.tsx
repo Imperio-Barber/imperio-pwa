@@ -425,7 +425,7 @@ export default function EmployeePage() {
 
   return (
     return (
-  <main className="relative min-h-screen overflow-hidden bg-black text-white">
+  <main className="relative min-h-screen overflow-hidden bg-transparent text-white">
 
     <div className="pointer-events-none fixed inset-0 z-[9999] flex items-center justify-center opacity-100">
   <img
