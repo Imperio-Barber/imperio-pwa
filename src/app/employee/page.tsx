@@ -85,7 +85,7 @@ export default function EmployeePage() {
   const productCommission = productSalesTotal * 0.2
 
   const inputClass =
-    'w-full min-h-[54px] rounded-2xl border border-white/25 bg-zinc-950 px-4 py-3 text-white placeholder:text-zinc-500 outline-none transition focus:border-[#7bc892] focus:ring-2 focus:ring-[#7bc892]/30'
+    'w-full min-h-[54px] rounded-2xl border border-white/25 bg-zinc-950/80 px-4 py-3 text-white placeholder:text-zinc-500 outline-none transition focus:border-[#7bc892] focus:ring-2 focus:ring-[#7bc892]/30'
 
   const darkTileClass =
     'min-h-[58px] rounded-2xl border border-white/15 bg-zinc-900 px-4 py-3 font-bold text-white shadow-md transition hover:bg-zinc-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50'
@@ -434,12 +434,12 @@ export default function EmployeePage() {
     className="w-[90vw] max-w-[900px] object-contain"
   />
 </div>
-      <div className="relative z-10 mx-auto min-h-screen max-w-6xl p-4 md:p-8">
+      <div className="relative z-10 mx-auto min-h-screen max-w-6xl bg-black/70 p-4 backdrop-blur-[2px] md:p-8">
         {!isLoggedIn ? (
           <div className="mx-auto flex min-h-[80vh] w-full max-w-3xl flex-col justify-center px-3 py-6 sm:px-4">
             <Header title="Logowanie pracownika" subtitle="Wybierz swoje konto i wpisz PIN." />
 
-            <section className="mx-auto mt-6 w-full max-w-xl rounded-3xl border border-white/10 bg-zinc-950 p-5 shadow-xl">
+            <section className="mx-auto mt-6 w-full max-w-xl rounded-3xl border border-white/10 bg-zinc-950/80 p-5 shadow-xl">
               <label className="mb-2 block text-sm font-bold text-white/70">Pracownik</label>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -507,7 +507,7 @@ export default function EmployeePage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-sm font-bold text-white/70">Pracownik</label>
-                  <div className="flex min-h-[54px] items-center rounded-2xl border border-white/20 bg-zinc-950 px-4 py-3 text-white">
+                  <div className="flex min-h-[54px] items-center rounded-2xl border border-white/20 bg-zinc-950/80 px-4 py-3 text-white">
                     {selectedEmployee?.name}
                   </div>
                 </div>
@@ -629,7 +629,7 @@ export default function EmployeePage() {
                   {message ? <p className="mt-3 text-sm text-[#7bc892]">{message}</p> : null}
                 </div>
 
-                <div className="md:col-span-2 rounded-3xl border border-white/10 bg-zinc-950 p-4 shadow-xl">
+                <div className="md:col-span-2 rounded-3xl border border-white/10 bg-zinc-950/80 p-4 shadow-xl">
                   <div className="mb-3">
                     <p className="text-sm text-[#7bc892]">Produkty</p>
                     <h2 className="text-xl font-bold">Sprzedaż kosmetyku</h2>
@@ -682,7 +682,7 @@ export default function EmployeePage() {
               <div className="space-y-4">
                 <SummaryCards summary={summary} />
 
-                <div className="rounded-3xl border border-white/10 bg-zinc-950 p-4 shadow-xl">
+                <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-4 shadow-xl">
                   <p className="text-sm text-white/55">Produkty sprzedane dzisiaj</p>
                   <p className="mt-1 text-2xl font-bold">{money(productSalesTotal)}</p>
                   <p className="text-sm text-[#7bc892]">
@@ -690,7 +690,7 @@ export default function EmployeePage() {
                   </p>
                 </div>
 
-                <div className="rounded-3xl border border-white/10 bg-zinc-950 p-4 shadow-xl">
+                <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-4 shadow-xl">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm text-white/55">Zamknięcie dnia</p>
@@ -712,7 +712,7 @@ export default function EmployeePage() {
               </div>
             </section>
 
-            <section className="mt-4 rounded-3xl border border-white/10 bg-zinc-950 p-4 shadow-xl">
+            <section className="mt-4 rounded-3xl border border-white/10 bg-zinc-950/80 p-4 shadow-xl">
               <h2 className="text-xl font-bold">Dzisiejsze transakcje</h2>
 
               <div className="mt-3 overflow-x-auto">
@@ -784,7 +784,7 @@ export default function EmployeePage() {
               </div>
             </section>
 
-            <section className="mt-4 rounded-3xl border border-white/10 bg-zinc-950 p-4 shadow-xl">
+            <section className="mt-4 rounded-3xl border border-white/10 bg-zinc-950/80 p-4 shadow-xl">
               <h2 className="text-xl font-bold">Sprzedaż produktów dzisiaj</h2>
 
               <div className="mt-3 overflow-x-auto">
