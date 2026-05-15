@@ -34,10 +34,41 @@ type ProductMovement = {
   created_at: string
 }
 
-function tomorrowIso() {
-  const date = new Date(todayIso())
-  date.setDate(date.getDate() + 1)
+type DayClosure = {
+  id?: string
+  employee_id: string
+  date: string
+  total_cash: number
+  total_card: number
+  total_booksy_pay: number
+  total_voucher: number
+  total_tips: number
+  note: string | null
+  is_closed?: boolean
+  employee_unlock_used?: boolean
+  employee_unlocked_at?: string | null
+  admin_unlocked_at?: string | null
+  closed_at?: string | null
+}
+
+type ServiceCount = {
+  name: string
+  count: number
+  total: number
+}
+
+function addDaysIso(dateString: string, days: number) {
+  const date = new Date(`${dateString}T12:00:00`)
+  date.setDate(date.getDate() + days)
   return date.toISOString().slice(0, 10)
+}
+
+function dateTimeForSelectedDate(dateString: string) {
+  const now = new Date()
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const seconds = String(now.getSeconds()).padStart(2, '0')
+  return new Date(`${dateString}T${hours}:${minutes}:${seconds}`).toISOString()
 }
 
 export default function EmployeePage() {
@@ -64,14 +95,59 @@ export default function EmployeePage() {
   const [productQuantity, setProductQuantity] = useState('1')
 
   const [closureDone, setClosureDone] = useState(false)
+  const [dayClosure, setDayClosure] = useState<DayClosure | null>(null)
   const [message, setMessage] = useState('')
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [pin, setPin] = useState('')
+  const [selectedDate, setSelectedDate] = useState(todayIso())
 
   const selectedEmployee = employees.find((employee) => employee.id === employeeId)
   const selectedService = services.find((service) => service.id === serviceId)
 
   const summary = useMemo(() => summarizeTransactions(transactions), [transactions])
+
+  const serviceSummary = useMemo<ServiceCount[]>(() => {
+    const map = new Map<string, ServiceCount>()
+
+    transactions.forEach((transaction) => {
+      const name = transaction.service_name || 'Usługa'
+      const current = map.get(name)
+
+      if (current) {
+        current.count += 1
+        current.total += Number(transaction.amount || 0)
+      } else {
+        map.set(name, {
+          name,
+          count: 1,
+          total: Number(transaction.amount || 0),
+        })
+      }
+    })
+
+    return Array.from(map.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+  }, [transactions])
+
+  const productSummary = useMemo<ServiceCount[]>(() => {
+    const map = new Map<string, ServiceCount>()
+
+    productSales.forEach((sale) => {
+      const product = products.find((item) => item.id === sale.product_id)
+      const name = product?.name || sale.note || 'Produkt'
+      const quantity = Number(sale.quantity || 0)
+      const total = quantity * Number(sale.unit_price || 0)
+      const current = map.get(name)
+
+      if (current) {
+        current.count += quantity
+        current.total += total
+      } else {
+        map.set(name, { name, count: quantity, total })
+      }
+    })
+
+    return Array.from(map.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+  }, [productSales, products])
 
   const productSalesTotal = useMemo(
     () =>
@@ -83,6 +159,8 @@ export default function EmployeePage() {
   )
 
   const productCommission = productSalesTotal * 0.2
+  const clientCount = transactions.length
+  const fullDayTotal = summary.total + productSalesTotal
 
   const inputClass =
     'w-full min-h-[54px] rounded-2xl border border-white/25 bg-zinc-950/80 px-4 py-3 text-white placeholder:text-zinc-500 outline-none transition focus:border-[#7bc892] focus:ring-2 focus:ring-[#7bc892]/30'
@@ -180,7 +258,7 @@ export default function EmployeePage() {
       .from('transactions')
       .select('*')
       .eq('employee_id', currentEmployeeId)
-      .eq('date', todayIso())
+      .eq('date', selectedDate)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -195,8 +273,8 @@ export default function EmployeePage() {
       .select('*')
       .eq('employee_id', currentEmployeeId)
       .eq('type', 'sale')
-      .gte('created_at', `${todayIso()}T00:00:00`)
-      .lt('created_at', `${tomorrowIso()}T00:00:00`)
+      .gte('created_at', `${selectedDate}T00:00:00`)
+      .lt('created_at', `${addDaysIso(selectedDate, 1)}T00:00:00`)
       .order('created_at', { ascending: false })
 
     setProductSales((sales.data || []) as ProductMovement[])
@@ -205,10 +283,12 @@ export default function EmployeePage() {
       .from('day_closures')
       .select('*')
       .eq('employee_id', currentEmployeeId)
-      .eq('date', todayIso())
+      .eq('date', selectedDate)
       .maybeSingle()
 
-    setClosureDone(Boolean(closure.data))
+    const loadedClosure = (closure.data || null) as DayClosure | null
+    setDayClosure(loadedClosure)
+    setClosureDone(Boolean(loadedClosure && loadedClosure.is_closed !== false))
   }
 
   useEffect(() => {
@@ -219,7 +299,7 @@ export default function EmployeePage() {
     if (isLoggedIn) {
       loadTransactions(employeeId)
     }
-  }, [employeeId, isLoggedIn])
+  }, [employeeId, isLoggedIn, selectedDate])
 
   useEffect(() => {
     const service = services.find((item) => item.id === serviceId)
@@ -228,7 +308,7 @@ export default function EmployeePage() {
 
   function startEditTransaction(transaction: Transaction) {
     if (closureDone) {
-      setMessage('Dzień jest już zamknięty. Nie można edytować transakcji.')
+      setMessage('Ten dzień jest zamknięty. Najpierw otwórz dzień, potem edytuj transakcję.')
       return
     }
 
@@ -245,7 +325,7 @@ export default function EmployeePage() {
 
   async function deleteTransaction(id: string) {
     if (closureDone) {
-      setMessage('Dzień jest już zamknięty. Nie można usuwać transakcji.')
+      setMessage('Ten dzień jest zamknięty. Najpierw otwórz dzień, potem usuń transakcję.')
       return
     }
 
@@ -266,7 +346,7 @@ export default function EmployeePage() {
     setMessage('')
 
     if (closureDone) {
-      setMessage('Dzień jest już zamknięty. Nie można dodawać ani edytować transakcji.')
+      setMessage('Ten dzień jest zamknięty. Najpierw otwórz dzień, potem dodaj brakującą usługę.')
       return
     }
 
@@ -289,7 +369,7 @@ export default function EmployeePage() {
     const payload = {
       employee_id: selectedEmployee.id,
       service_id: selectedService.id.startsWith('demo-') ? null : selectedService.id,
-      date: todayIso(),
+      date: selectedDate,
       service_name: selectedService.name,
       amount: Math.max(finalAmount, 0),
       payment_method: paymentMethod,
@@ -320,7 +400,7 @@ export default function EmployeePage() {
     setMessage('')
 
     if (closureDone) {
-      setMessage('Dzień jest już zamknięty. Nie można sprzedawać produktów.')
+      setMessage('Ten dzień jest zamknięty. Najpierw otwórz dzień, potem dodaj brakujący kosmetyk.')
       return
     }
 
@@ -364,6 +444,7 @@ export default function EmployeePage() {
       quantity,
       unit_price: product.sale_price,
       note: `Sprzedaż produktu: ${product.name}`,
+      created_at: dateTimeForSelectedDate(selectedDate),
     })
 
     if (movement.error) {
@@ -372,9 +453,7 @@ export default function EmployeePage() {
     }
 
     setProducts((prev) =>
-      prev.map((item) =>
-        item.id === product.id ? { ...item, stock_quantity: newStock } : item
-      )
+      prev.map((item) => (item.id === product.id ? { ...item, stock_quantity: newStock } : item))
     )
 
     setProductQuantity('1')
@@ -392,7 +471,7 @@ export default function EmployeePage() {
 
     if (
       !confirm(
-        'Czy na pewno zamknąć dzień? Po zamknięciu nie będzie można dodawać ani edytować transakcji.'
+        `Czy na pewno zamknąć dzień ${selectedDate}? Po zamknięciu pojawi się podsumowanie i nie będzie można dodawać ani edytować transakcji.`
       )
     ) {
       return
@@ -400,13 +479,16 @@ export default function EmployeePage() {
 
     const payload = {
       employee_id: selectedEmployee.id,
-      date: todayIso(),
+      date: selectedDate,
       total_cash: summary.cash,
       total_card: summary.card,
       total_booksy_pay: summary.booksy_pay,
       total_voucher: summary.voucher,
       total_tips: summary.tips,
       note: null,
+      is_closed: true,
+      employee_unlock_used: dayClosure?.employee_unlock_used || false,
+      closed_at: new Date().toISOString(),
     }
 
     const { error } = await supabase
@@ -414,13 +496,42 @@ export default function EmployeePage() {
       .upsert(payload, { onConflict: 'employee_id,date' })
 
     if (error) {
-      setMessage('Nie udało się zamknąć dnia.')
+      setMessage('Nie udało się zamknąć dnia. Sprawdź, czy tabela day_closures ma nowe kolumny.')
       return
     }
 
-    setClosureDone(true)
+    await loadTransactions(selectedEmployee.id)
     setEditingTransactionId(null)
-    setMessage('Dzień zamknięty.')
+    setMessage('Dzień zamknięty. Poniżej widzisz podsumowanie dnia.')
+  }
+
+  async function unlockDayByEmployee() {
+    if (!selectedEmployee || !dayClosure) return
+
+    if (dayClosure.employee_unlock_used) {
+      setMessage('Ten dzień był już raz odblokowany. Kolejne odblokowanie może wykonać tylko administrator.')
+      return
+    }
+
+    if (!confirm(`Otworzyć dzień ${selectedDate}? Możesz zrobić to samodzielnie tylko jeden raz.`)) return
+
+    const { error } = await supabase
+      .from('day_closures')
+      .update({
+        is_closed: false,
+        employee_unlock_used: true,
+        employee_unlocked_at: new Date().toISOString(),
+      })
+      .eq('employee_id', selectedEmployee.id)
+      .eq('date', selectedDate)
+
+    if (error) {
+      setMessage('Nie udało się odblokować dnia. Sprawdź kolumny w day_closures.')
+      return
+    }
+
+    await loadTransactions(selectedEmployee.id)
+    setMessage('Dzień odblokowany. To było jedyne samodzielne odblokowanie dla tego dnia.')
   }
 
   return (
@@ -470,39 +581,141 @@ export default function EmployeePage() {
                   />
                 </div>
 
-                <button
-                  className={`${greenTileClass} mt-6 w-full`}
-                  type="button"
-                  onClick={loginWithPin}
-                >
+                <button className={`${greenTileClass} mt-6 w-full`} type="button" onClick={loginWithPin}>
                   Zaloguj
                 </button>
 
-                {message ? (
-                  <p className="mt-4 text-center text-sm text-[#7bc892]">{message}</p>
-                ) : null}
+                {message ? <p className="mt-4 text-center text-sm text-[#7bc892]">{message}</p> : null}
               </section>
             </div>
           ) : (
             <>
               <Header title="Panel pracownika" subtitle="Szybkie wpisywanie utargu na tablecie." />
 
-              <div className="mb-4 flex justify-end">
+              <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-zinc-950/70 px-4 py-3">
+                  <label className="text-sm font-bold text-white/70">Data</label>
+
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(event) => setSelectedDate(event.target.value)}
+                    className="rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-white outline-none"
+                  />
+                </div>
+
                 <button className={darkTileClass} type="button" onClick={logout}>
                   Wyloguj
                 </button>
               </div>
 
               {closureDone ? (
-                <div className="mb-4 rounded-3xl border border-red-500/40 bg-red-500/10 p-4 text-red-100">
-                  <p className="font-bold">Dzień jest zamknięty.</p>
-                  <p className="text-sm opacity-80">
-                    Nie można już dodawać, edytować ani usuwać transakcji.
-                  </p>
-                </div>
+                <section className="mx-auto w-full max-w-3xl rounded-3xl border border-[#7bc892]/30 bg-zinc-950/90 p-6 shadow-2xl backdrop-blur-sm">
+                  <div>
+                    <div className="mb-6 text-center">
+                      <p className="text-sm text-[#7bc892]">Dzień został zamknięty</p>
+                      <h2 className="mt-2 text-3xl font-bold">{selectedEmployee?.name}</h2>
+                      <div className="mt-3 flex justify-center">
+                        <input
+                          type="date"
+                          value={selectedDate}
+                          onChange={(event) => setSelectedDate(event.target.value)}
+                          className="rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-white outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-xs text-white/50">Klienci</p>
+                        <p className="mt-1 text-2xl font-bold">{clientCount}</p>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-xs text-white/50">Gotówka</p>
+                        <p className="mt-1 text-2xl font-bold">{money(summary.cash)}</p>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-xs text-white/50">Karta</p>
+                        <p className="mt-1 text-2xl font-bold">{money(summary.card)}</p>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-xs text-white/50">Booksy Pay</p>
+                        <p className="mt-1 text-2xl font-bold">{money(summary.booksy_pay)}</p>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-xs text-white/50">Voucher</p>
+                        <p className="mt-1 text-2xl font-bold">{money(summary.voucher)}</p>
+                      </div>
+
+                      <div className="rounded-2xl border border-[#7bc892]/30 bg-[#7bc892]/10 p-4">
+                        <p className="text-xs text-white/50">Razem</p>
+                        <p className="mt-1 text-2xl font-bold">{money(fullDayTotal)}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <h3 className="mb-3 text-lg font-bold">Usługi wykonane w tym dniu</h3>
+
+                      <div className="space-y-2">
+                        {serviceSummary.map((item) => (
+                          <div
+                            key={item.name}
+                            className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3"
+                          >
+                            <span className="font-bold">{item.name}</span>
+                            <span className="text-white/70">
+                              {item.count}x · {money(item.total)}
+                            </span>
+                          </div>
+                        ))}
+
+                        {!serviceSummary.length ? (
+                          <p className="text-center text-sm text-white/50">Brak usług do podsumowania.</p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <h3 className="mb-3 text-lg font-bold">Kosmetyki sprzedane w tym dniu</h3>
+
+                      <div className="space-y-2">
+                        {productSummary.map((item) => (
+                          <div
+                            key={item.name}
+                            className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3"
+                          >
+                            <span className="font-bold">{item.name}</span>
+                            <span className="text-white/70">
+                              {item.count}x · {money(item.total)}
+                            </span>
+                          </div>
+                        ))}
+
+                        {!productSummary.length ? (
+                          <p className="text-center text-sm text-white/50">Brak sprzedaży kosmetyków.</p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex flex-col items-center gap-2">
+                      <button className={darkTileClass} onClick={unlockDayByEmployee} type="button">
+                        Otwórz dzień
+                      </button>
+
+                      <p className="text-center text-xs text-white/50">
+                        Pracownik może otworzyć zamknięty dzień tylko jeden raz. Kolejne otwarcie wykonuje administrator.
+                      </p>
+                    </div>
+                  </div>
+                </section>
               ) : null}
 
-              <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+              {!closureDone ? (
+                <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="mb-2 block text-sm font-bold text-white/70">Pracownik</label>
@@ -547,9 +760,7 @@ export default function EmployeePage() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-bold text-white/70">
-                      Rabat / korekta
-                    </label>
+                    <label className="mb-2 block text-sm font-bold text-white/70">Rabat / korekta</label>
                     <input
                       className={inputClass}
                       inputMode="decimal"
@@ -618,11 +829,7 @@ export default function EmployeePage() {
                       type="button"
                       disabled={closureDone}
                     >
-                      {closureDone
-                        ? 'Dzień zamknięty'
-                        : editingTransactionId
-                          ? 'Zapisz korektę'
-                          : 'Dodaj transakcję'}
+                      {closureDone ? 'Dzień zamknięty' : editingTransactionId ? 'Zapisz korektę' : 'Dodaj transakcję'}
                     </button>
 
                     {message ? <p className="mt-3 text-sm text-[#7bc892]">{message}</p> : null}
@@ -666,12 +873,7 @@ export default function EmployeePage() {
                         />
                       </div>
 
-                      <button
-                        className={greenTileClass}
-                        type="button"
-                        onClick={sellProduct}
-                        disabled={closureDone}
-                      >
+                      <button className={greenTileClass} type="button" onClick={sellProduct} disabled={closureDone}>
                         Sprzedaj
                       </button>
                     </div>
@@ -682,37 +884,41 @@ export default function EmployeePage() {
                   <SummaryCards summary={summary} />
 
                   <div className="rounded-3xl border border-white/10 bg-zinc-950/70 p-4 shadow-xl backdrop-blur-sm">
-                    <p className="text-sm text-white/55">Produkty sprzedane dzisiaj</p>
+                    <p className="text-sm text-white/55">Produkty sprzedane w wybranym dniu</p>
                     <p className="mt-1 text-2xl font-bold">{money(productSalesTotal)}</p>
-                    <p className="text-sm text-[#7bc892]">
-                      Prowizja 20%: {money(productCommission)}
-                    </p>
+                    <p className="text-sm text-[#7bc892]">Prowizja 20%: {money(productCommission)}</p>
                   </div>
 
                   <div className="rounded-3xl border border-white/10 bg-zinc-950/70 p-4 shadow-xl backdrop-blur-sm">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-sm text-white/55">Zamknięcie dnia</p>
-                        <p className="text-xl font-bold">
-                          {closureDone ? 'Zamknięte' : 'Otwarte'}
-                        </p>
+                        <p className="text-xl font-bold">{closureDone ? 'Zamknięte' : 'Otwarte'}</p>
+                        {dayClosure?.employee_unlock_used ? (
+                          <p className="mt-1 text-sm text-yellow-200">Samodzielne odblokowanie zostało już wykorzystane.</p>
+                        ) : null}
                       </div>
 
-                      <button
-                        className={closureDone ? darkTileClass : redTileClass}
-                        onClick={closeDay}
-                        type="button"
-                        disabled={closureDone}
-                      >
-                        {closureDone ? 'Zamknięte' : 'Zamknij dzień'}
-                      </button>
+                      {closureDone ? (
+                        <button className={darkTileClass} onClick={unlockDayByEmployee} type="button">
+                          Otwórz dzień
+                        </button>
+                      ) : (
+                        <button className={redTileClass} onClick={closeDay} type="button">
+                          Zamknij dzień
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
               </section>
+              ) : null}
 
-              <section className="mt-4 rounded-3xl border border-white/10 bg-zinc-950/70 p-4 shadow-xl backdrop-blur-sm">
-                <h2 className="text-xl font-bold">Dzisiejsze transakcje</h2>
+              {!closureDone ? (
+                <section className="mt-4 rounded-3xl border border-white/10 bg-zinc-950/70 p-4 shadow-xl backdrop-blur-sm">
+                  <h2 className="text-xl font-bold">
+                    {selectedDate === todayIso() ? 'Dzisiejsze transakcje' : `Transakcje z ${selectedDate}`}
+                  </h2>
 
                 <div className="mt-3 overflow-x-auto">
                   <table className="w-full min-w-[700px] text-left text-sm">
@@ -739,12 +945,7 @@ export default function EmployeePage() {
                           </td>
                           <td>{transaction.service_name}</td>
                           <td>{money(transaction.amount)}</td>
-                          <td>
-                            {
-                              paymentMethods.find((m) => m.value === transaction.payment_method)
-                                ?.label
-                            }
-                          </td>
+                          <td>{paymentMethods.find((m) => m.value === transaction.payment_method)?.label}</td>
                           <td>{money(transaction.tip_amount)}</td>
                           <td>{transaction.note || ''}</td>
                           <td>
@@ -774,7 +975,7 @@ export default function EmployeePage() {
                       {!transactions.length ? (
                         <tr>
                           <td colSpan={7} className="py-6 text-center text-white/50">
-                            Brak transakcji na dziś.
+                            Brak transakcji dla wybranej daty.
                           </td>
                         </tr>
                       ) : null}
@@ -782,9 +983,13 @@ export default function EmployeePage() {
                   </table>
                 </div>
               </section>
+              ) : null}
 
-              <section className="mt-4 rounded-3xl border border-white/10 bg-zinc-950/70 p-4 shadow-xl backdrop-blur-sm">
-                <h2 className="text-xl font-bold">Sprzedaż produktów dzisiaj</h2>
+              {!closureDone ? (
+                <section className="mt-4 rounded-3xl border border-white/10 bg-zinc-950/70 p-4 shadow-xl backdrop-blur-sm">
+                  <h2 className="text-xl font-bold">
+                    {selectedDate === todayIso() ? 'Sprzedaż produktów dzisiaj' : `Sprzedaż produktów z ${selectedDate}`}
+                  </h2>
 
                 <div className="mt-3 overflow-x-auto">
                   <table className="w-full min-w-[700px] text-left text-sm">
@@ -824,7 +1029,7 @@ export default function EmployeePage() {
                       {!productSales.length ? (
                         <tr>
                           <td colSpan={6} className="py-6 text-center text-white/50">
-                            Brak sprzedaży produktów na dziś.
+                            Brak sprzedaży produktów dla wybranej daty.
                           </td>
                         </tr>
                       ) : null}
@@ -832,6 +1037,7 @@ export default function EmployeePage() {
                   </table>
                 </div>
               </section>
+              ) : null}
             </>
           )}
         </div>
